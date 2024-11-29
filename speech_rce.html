@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeechRecognition Stress Test</title>
+</head>
+<body>
+    <h1>SpeechRecognition Stress Test</h1>
+    <button id="startButton">Start Stress Test</button>
+    <p id="status">Status: Idle</p>
+
+    <script>
+        let recognizers = [];
+        let totalCreated = 0;
+
+        // Function to create and manage SpeechRecognition instances
+        function createSpeechRecognizers(count) {
+            for (let i = 0; i < count; i++) {
+                try {
+                    let recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+
+                    // Set recognizer properties
+                    recognition.lang = 'en-US';
+                    recognition.interimResults = false;
+                    recognition.maxAlternatives = 1;
+
+                    recognition.onresult = function(event) {
+                        let transcript = event.results[0][0].transcript;
+                        console.log(`Instance ${totalCreated + i}: Recognized - "${transcript}"`);
+                    };
+
+                    recognition.onerror = function(event) {
+                        console.error(`Instance ${totalCreated + i}: Error - ${event.error}`);
+                    };
+
+                    recognition.onend = function() {
+                        console.log(`Instance ${totalCreated + i} ended.`);
+                    };
+
+                    // Start the recognition and stop it after a short time
+                    recognition.start();
+                    setTimeout(() => recognition.stop(), Math.random() * 200 + 100);
+
+                    recognizers.push(recognition);
+                } catch (error) {
+                    console.error('Error creating SpeechRecognition instance:', error);
+                }
+            }
+            totalCreated += count;
+            console.log(`Created ${count} SpeechRecognition instances.`);
+            document.getElementById('status').innerText = `Status: Created ${totalCreated} instances`;
+        }
+
+        // Main trigger function for stress testing
+        function triggerSpeechRecognitionStressTest() {
+            const batchSize = 500; // Create recognizers in batches
+            const totalInstances = 50000; // Total number of instances to create
+            let currentBatch = 0;
+
+            function createBatch() {
+                if (currentBatch * batchSize >= totalInstances) {
+                    console.log('Stress test completed.');
+                    document.getElementById('status').innerText = `Status: Test completed (${totalInstances} instances created)`;
+                    return;
+                }
+
+                createSpeechRecognizers(batchSize);
+                currentBatch++;
+                setTimeout(createBatch, 50); // Add delay to avoid freezing the browser
+            }
+
+            document.getElementById('status').innerText = 'Status: Starting stress test...';
+            createBatch();
+        }
+
+        // Event listener for the start button
+        document.getElementById('startButton').addEventListener('click', triggerSpeechRecognitionStressTest);
+    </script>
+</body>
+</html>
